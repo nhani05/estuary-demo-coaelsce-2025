@@ -21,3 +21,17 @@ services:
       MONGO_DB_NAME: ${MONGO_DB_NAME:-estuary_raw}
       MONGO_TRANSFORMED_DB_NAME: ${MONGO_TRANSFORMED_DB_NAME:-estuary_transformed}
       TRANSFORM_POLL_INTERVAL: ${TRANSFORM_POLL_INTERVAL:-10}
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - metabase-data:/metabase-data
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
+
+volumes:
+  metabase-data:
