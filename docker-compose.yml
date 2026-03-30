@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  datagen:
+    build: datagen
+    container_name: mongodb-cloud-datagen
+    restart: unless-stopped
+    environment:
+      # Thay bằng chuỗi kết nối MongoDB Atlas của bạn
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-estuary_demo}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
