@@ -1,82 +1,223 @@
-# 🚀 Estuary Real-Time CDC Demo: MongoDB to Google Sheets
+# 🐾 Pet Store Real-Time ETL Pipeline
 
-Dự án này là một bản demo trực quan về luồng dữ liệu theo thời gian thực (Real-time Change Data Capture - CDC) sử dụng **Estuary Flow**. Dữ liệu mua hàng và đánh giá sản phẩm giả lập sẽ được tạo liên tục, lưu trữ trên MongoDB Atlas, và tự động đồng bộ sang Google Sheets thông qua Estuary.
-
-## 🏗 Kiến trúc dự án (Architecture)
-
-1. **Nguồn phát sinh dữ liệu (Data Generator):** Một script Python được đóng gói bằng Docker. Script này sử dụng thư viện `Faker` và `OpenAI API` để liên tục tạo ra các giao dịch (transactions) và đánh giá (reviews) giả lập, sau đó đẩy thẳng lên MongoDB.
-2. **Cơ sở dữ liệu nguồn (Source Database):** **MongoDB Cloud (Atlas)** đóng vai trò lưu trữ dữ liệu gốc.
-3. **Động cơ CDC (Streaming Engine):** **Estuary Flow** sẽ kết nối với MongoDB để "lắng nghe" các thay đổi dữ liệu (Capture) theo thời gian thực.
-4. **Đích đến (Destination):** Estuary Flow tự động đẩy dữ liệu nhận được sang **Google Sheets** (Materialization) để dễ dàng quan sát mà không cần viết SQL.
+Dự án demo một **ETL pipeline hoàn chỉnh theo thời gian thực** sử dụng dữ liệu mô phỏng của một cửa hàng thú cưng. Dữ liệu được sinh tự động, làm sạch, transform, và hiển thị trên dashboard — hoàn toàn tự động và liên tục.
 
 ---
 
-## 📋 Yêu cầu hệ thống (Prerequisites)
+## 🏗 Kiến trúc tổng thể
 
-Để chạy được dự án này, bạn cần chuẩn bị:
-- Đã cài đặt [Docker](https://docs.docker.com/get-docker/) và [Docker Compose](https://docs.docker.com/compose/install/).
-- Một tài khoản/Cluster **MongoDB Atlas** miễn phí (đã lấy được chuỗi kết nối `MONGO_URI`).
-- Một tài khoản [Estuary Flow](https://dashboard.estuary.dev/).
-- (Tùy chọn) API Key của OpenAI để sinh nội dung review phong phú hơn.
-
----
-
-## ⚙️ Hướng dẫn cài đặt & Khởi chạy (Setup & Run)
-
-### Bước 1: Cấu hình biến môi trường
-Tạo một file có tên `.env` nằm ở thư mục gốc của dự án (cùng cấp với file `docker-compose.yml`) và điền các thông tin sau:
-
-```env
-# Chuỗi kết nối MongoDB Atlas của bạn
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>.mongodb.net/?retryWrites=true&w=majority
-
-# Tên database muốn lưu trữ
-MONGO_DB_NAME=estuary_demo
-
-# OpenAI API Key (nếu có, nếu không API sẽ báo lỗi 429 nhưng script vẫn chạy dùng dữ liệu mặc định)
-OPENAI_API_KEY=sk-your-openai-api-key
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        EXTRACT                                  │
+│   Data Generator (Python + Docker)                              │
+│   Faker · OpenAI · 1 record/giây · 60% txn / 40% review        │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ insert
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    RAW LAYER (Bronze)                           │
+│   MongoDB Atlas  —  estuary_raw                                 │
+│   ├── products       (seed, 4 sản phẩm)                        │
+│   ├── transactions   (raw, có anomaly)                         │
+│   └── reviews        (raw, rating 1–5)                         │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ poll mỗi 10 giây
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    TRANSFORM LAYER                              │
+│   Transform Container (Python + pandas + Docker)               │
+│   ├── clean_transactions  → validate, flag anomaly, join name  │
+│   ├── enrich_reviews      → sentiment label, join product name │
+│   └── daily_summary       → aggregate revenue + checksum guard │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ upsert (idempotent)
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 TRANSFORMED LAYER (Silver/Gold)                 │
+│   MongoDB Atlas  —  estuary_transformed                         │
+│   ├── txn_clean          (clean · is_anomaly · product_name)   │
+│   ├── reviews_enriched   (sentiment · product_name)            │
+│   └── daily_summary      (revenue · avg_rating · anomaly_count)│
+└────────────────────────┬────────────────────────────────────────┘
+                         │ CDC (Change Data Capture)
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    LOAD LAYER                                   │
+│   Estuary Flow  →  Capture + Materialize                       │
+│                         │                                       │
+│                         ▼                                       │
+│   Metabase Dashboard (localhost:3000)                          │
+│   ├── Doanh thu theo ngày                                      │
+│   ├── Top sản phẩm theo doanh thu                              │
+│   ├── Sentiment reviews                                        │
+│   └── Anomaly transactions                                     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Bước 2: Khởi chạy Data Generator
-Mở terminal, trỏ tới thư mục chứa dự án và chạy lệnh sau để build và khởi động script Python ngầm bằng Docker:
+**Latency end-to-end:** ~75 giây từ lúc insert đến lúc thấy trên dashboard.
+
+---
+
+## 📁 Cấu trúc dự án
+
+```
+project/
+├── datagen/
+│   ├── Dockerfile
+│   ├── datagen.py          # Data generator chính
+│   └── requirements.txt
+├── transform/
+│   ├── Dockerfile
+│   ├── transform.py        # 3 transform jobs
+│   └── requirements.txt
+├── docker-compose.yml      # Orchestrate tất cả containers
+├── .env                    # Biến môi trường (không commit)
+└── README.md
+```
+
+---
+
+## 🔧 Công nghệ sử dụng
+
+| Layer | Công nghệ | Vai trò |
+|---|---|---|
+| Data generation | Python, Faker, OpenAI API | Sinh dữ liệu giả lập |
+| Containerization | Docker, Docker Compose | Đóng gói và orchestrate |
+| Raw storage | MongoDB Atlas (Free tier) | Bronze layer |
+| Transformation | Python, pandas | ETL transform jobs |
+| Clean storage | MongoDB Atlas | Silver/Gold layer |
+| CDC streaming | Estuary Flow (Free tier) | Capture & Materialize |
+| Dashboard | Metabase (Self-hosted) | Visualization |
+
+Tất cả công nghệ đều **miễn phí** ở mức độ sử dụng của demo này.
+
+---
+
+## ⚙️ Yêu cầu hệ thống
+
+- [Docker Desktop](https://docs.docker.com/get-docker/) đã cài đặt và đang chạy
+- Tài khoản [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (Free tier)
+- Tài khoản [Estuary Flow](https://dashboard.estuary.dev/) (Free tier)
+- (Tùy chọn) OpenAI API Key — nếu không có, script vẫn chạy với review mặc định
+
+---
+
+## 🚀 Hướng dẫn cài đặt & chạy
+
+### Bước 1: Clone dự án và cấu hình biến môi trường
+
+Tạo file `.env` ở thư mục gốc:
+
+```env
+# MongoDB Atlas connection string
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxxx.mongodb.net/?retryWrites=true&w=majority
+
+# Tên database
+MONGO_DB_NAME=estuary_raw
+MONGO_TRANSFORMED_DB_NAME=estuary_transformed
+
+# Số giây giữa mỗi lần transform (mặc định 10)
+TRANSFORM_POLL_INTERVAL=10
+
+# OpenAI (tùy chọn)
+OPENAI_API_KEY=sk-your-key-here
+```
+
+### Bước 2: Khởi chạy toàn bộ pipeline
 
 ```bash
 docker-compose up --build -d
 ```
 
-Để kiểm tra xem script có đang hoạt động tốt và đang đẩy dữ liệu lên MongoDB hay không, xem log bằng lệnh:
+Lệnh này sẽ khởi động 3 containers:
+- `mongodb-cloud-datagen` — liên tục sinh dữ liệu vào `estuary_raw`
+- `mongodb-cloud-transform` — poll và transform sang `estuary_transformed` mỗi 10 giây
+- `metabase` — dashboard tại `http://localhost:3000`
+
+### Bước 3: Kiểm tra logs
+
 ```bash
+# Xem datagen đang chạy
 docker logs -f mongodb-cloud-datagen
+
+# Xem transform pipeline
+docker logs -f mongodb-cloud-transform
 ```
-*(Nhấn `Ctrl + C` để thoát màn hình log)*
 
-### Bước 3: Thiết lập Pipeline trên Estuary Flow
+Output transform sẽ như sau:
+```
+2026-03-30 [INFO] --- Running transform pipeline ---
+2026-03-30 [INFO] clean_transactions: processed 142 records, 8 anomalies flagged
+2026-03-30 [INFO] enrich_reviews: processed 89 records
+2026-03-30 [INFO] daily_summary: upserted 4 rows (skipped 8 unchanged)
+```
 
-1. **Tạo Capture (Hút dữ liệu):**
-   - Đăng nhập Estuary Flow > **Captures** > **New Capture**.
-   - Chọn connector **MongoDB**.
-   - Điền `MONGO_URI` của bạn vào phần cấu hình kết nối.
-   - Nhấn **Next**, chọn các collections (`products`, `transactions`, `reviews`) và **Save and Publish**.
+### Bước 4: Thiết lập Estuary Flow
 
-2. **Tạo Materialization (Đổ dữ liệu):**
-   - Tạo một file **Google Sheets** trống và copy đường link URL.
-   - Trên Estuary Flow > **Materializations** > **New Materialization**.
-   - Chọn connector **Google Sheets**.
-   - Xác thực tài khoản Google và dán đường link URL vào.
-   - Chọn Capture MongoDB vừa tạo làm Source Collections.
-   - Nhấn **Next** > **Save and Publish**.
+1. Đăng nhập [dashboard.estuary.dev](https://dashboard.estuary.dev)
+2. **Captures** → **New Capture** → chọn **MongoDB**
+3. Điền `MONGO_URI`, chọn database `estuary_transformed`, chọn 3 collections: `txn_clean`, `reviews_enriched`, `daily_summary`
+4. **Materializations** → **New Materialization** → chọn destination (Google Sheets hoặc khác)
 
-### Bước 4: Quan sát kết quả
-Mở file Google Sheets của bạn ra. Bạn sẽ thấy các tab mới (`transactions`, `reviews`) tự động xuất hiện và dữ liệu liên tục được cập nhật theo thời gian thực mỗi khi script Python sinh ra dữ liệu mới trên MongoDB.
+### Bước 5: Thiết lập Metabase Dashboard
+
+1. Mở `http://localhost:3000`
+2. Tạo tài khoản admin
+3. Kết nối MongoDB với connection string:
+   ```
+   mongodb+srv://<username>:<password>@cluster0.xxxxxx.mongodb.net/estuary_transformed?retryWrites=true&w=majority
+   ```
+4. Tạo dashboard với các charts từ 3 collections đã transform
+5. Bật auto-refresh 1 phút: icon đồng hồ → **1 minute**
 
 ---
 
-## 🧹 Dọn dẹp hệ thống (Teardown)
+## 📊 Transform jobs
 
-Khi đã chạy xong demo và muốn tắt máy phát dữ liệu, hãy chạy lệnh sau trong terminal:
+### `clean_transactions`
+Đọc từ `estuary_raw.transactions`, ghi vào `estuary_transformed.txn_clean`.
+
+- Loại bỏ records có `amount <= 0`
+- Flag anomaly: `amount > 500` hoặc `amount < 5`
+- Join `product_name` từ `products`
+- Standardize `transaction_date` sang ISO 8601
+- Upsert idempotent theo `_source_id`
+
+### `enrich_reviews`
+Đọc từ `estuary_raw.reviews`, ghi vào `estuary_transformed.reviews_enriched`.
+
+- Validate `rating` trong khoảng [1, 5]
+- Thêm `sentiment`: `positive` (≥4), `neutral` (3), `negative` (≤2)
+- Join `product_name` từ `products`
+- Standardize `review_time` sang ISO 8601
+
+### `daily_summary`
+Đọc từ `estuary_transformed.txn_clean` + `reviews_enriched`, ghi vào `estuary_transformed.daily_summary`.
+
+- Aggregate theo `date` + `product_id`
+- Tính: `total_revenue`, `transaction_count`, `avg_amount`, `anomaly_count`
+- Join `avg_rating` từ reviews
+- Checksum guard: chỉ upsert khi data thực sự thay đổi, tránh write amplification cho Estuary CDC
+
+---
+
+## 🧹 Dọn dẹp
 
 ```bash
+# Dừng tất cả containers
 docker-compose down
+
+# Dừng và xóa cả volumes (xóa Metabase data)
+docker-compose down -v
 ```
-Lệnh này sẽ dừng và xóa container chạy ngầm, ngừng việc đẩy dữ liệu rác lên MongoDB của bạn. Đừng quên tạm dừng (Pause) Capture và Materialization trên giao diện Estuary Flow để tiết kiệm tài nguyên hệ thống.
-```
+
+Sau khi dừng Docker, vào Estuary Flow → Pause Capture và Materialization để tiết kiệm tài nguyên.
+
+---
+
+## 📈 Hướng phát triển tiếp theo
+
+- **Incremental processing** — thêm watermark để transform chỉ xử lý records mới thay vì toàn bộ collection
+- **Observability** — thêm alerting khi pipeline crash hoặc throughput bất thường
+- **Schema validation** — thêm contract giữa datagen và transform
+- **Machine Learning** — dùng `reviews_enriched` để train sentiment classifier, dùng `txn_clean` để build anomaly detection model
