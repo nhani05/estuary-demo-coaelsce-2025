@@ -10,18 +10,6 @@ services:
       MONGO_DB_NAME: ${MONGO_DB_NAME:-estuary_raw}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
 
-  transform:
-    build: transform
-    container_name: mongodb-cloud-transform
-    restart: unless-stopped
-    depends_on:
-      - datagen
-    environment:
-      MONGO_URI: ${MONGO_URI}
-      MONGO_DB_NAME: ${MONGO_DB_NAME:-estuary_raw}
-      MONGO_TRANSFORMED_DB_NAME: ${MONGO_TRANSFORMED_DB_NAME:-estuary_transformed}
-      TRANSFORM_POLL_INTERVAL: ${TRANSFORM_POLL_INTERVAL:-10}
-
   metabase:
     image: metabase/metabase:latest
     container_name: metabase
