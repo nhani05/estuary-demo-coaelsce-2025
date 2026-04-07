@@ -1,3 +1,4 @@
+
 version: '3.8'
 
 services:
@@ -10,16 +11,34 @@ services:
       MONGO_DB_NAME: ${MONGO_DB_NAME:-estuary_raw}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
 
+  superset:
+    image: apache/superset:3.1.0
+    container_name: superset
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      SUPERSET_SECRET_KEY: petstore_secret_key_2026
+    volumes:
+      - superset-data:/app/superset_home
+
   metabase:
     image: metabase/metabase:latest
     container_name: metabase
     restart: unless-stopped
     ports:
       - "3000:3000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     volumes:
       - metabase-data:/metabase-data
     environment:
       MB_DB_FILE: /metabase-data/metabase.db
 
 volumes:
+  superset-data:
   metabase-data:

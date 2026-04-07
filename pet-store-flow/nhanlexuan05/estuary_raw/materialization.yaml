@@ -1,0 +1,20 @@
+materializations:
+  nhanlexuan05/estuary_raw/materialize-supabase:
+    endpoint:
+      connector:
+        image: ghcr.io/estuary/materialize-postgres:dev
+        config:
+          address: db.gezmctudtnzfldeobcqt.supabase.co:5432
+          database: postgres
+          user: postgres
+          password: OwPasAQYGBA4WwbJ
+          schema: estuary_raw
+
+    bindings:
+      - source: nhanlexuan05/estuary_raw/txn-clean
+        resource:
+          table: txn-clean
+
+      - source: nhanlexuan05/estuary_raw/reviews-enriched
+        resource:
+          table: reviews-enriched

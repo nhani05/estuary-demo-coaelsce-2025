@@ -1,0 +1,35 @@
+
+  nhanlexuan05/estuary_raw/product-stats:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        product_id:        { type: string }
+        total_revenue:     { type: number }
+        transaction_count: { type: integer }
+        avg_amount:        { type: number }
+        anomaly_count:     { type: integer }
+        avg_rating:        { type: number }
+        positive_reviews:  { type: integer }
+        negative_reviews:  { type: integer }
+        neutral_reviews:   { type: integer }
+        updated_at:        { type: string }
+      required: [_meta, product_id]
+    key: [/product_id]
+    derive:
+      using:
+        typescript:
+          module: transforms/product-stats.ts
+      transforms:
+        - name: fromTxnClean
+          source: nhanlexuan05/estuary_raw/txn-clean
+          shuffle:
+            key: [/product_id]
+        - name: fromReviewsEnriched
+          source: nhanlexuan05/estuary_raw/reviews-enriched
+          shuffle:
+            key: [/product_id]

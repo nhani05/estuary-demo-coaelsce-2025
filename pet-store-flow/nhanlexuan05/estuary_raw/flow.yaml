@@ -1,0 +1,85 @@
+import:
+  - collections.yaml
+  - materialization.yaml
+
+captures:
+  nhanlexuan05/estuary_raw/source-mongodb:
+    autoDiscover:
+      addNewBindings: true
+      evolveIncompatibleCollections: true
+    endpoint:
+      connector:
+        image: ghcr.io/estuary/source-mongodb:v3
+        config: source-mongodb.config.yaml
+    bindings:
+    - resource:
+        _meta:
+          path: [estuary_raw, products]
+        captureMode: Change Stream Incremental
+        collection: products
+        database: estuary_raw
+      target: nhanlexuan05/estuary_raw/estuary_raw/products
+    - resource:
+        _meta:
+          path: [estuary_raw, reviews]
+        captureMode: Change Stream Incremental
+        collection: reviews
+        database: estuary_raw
+      target: nhanlexuan05/estuary_raw/estuary_raw/reviews
+    - resource:
+        _meta:
+          path: [estuary_raw, transactions]
+        captureMode: Change Stream Incremental
+        collection: transactions
+        database: estuary_raw
+      target: nhanlexuan05/estuary_raw/estuary_raw/transactions
+
+collections:
+  nhanlexuan05/estuary_raw/estuary_raw/transactions:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        _id: {}
+        product_id: { type: string }
+        amount: { type: number }
+        transaction_date: {}
+        payment_method: { type: string }
+      required: [_meta]
+    key: [/_meta/uuid]
+
+  nhanlexuan05/estuary_raw/estuary_raw/reviews:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        _id: {}
+        product_id: { type: string }
+        rating: { type: integer }
+        review_text: { type: string }
+        review_time: {}
+      required: [_meta]
+    key: [/_meta/uuid]
+
+  nhanlexuan05/estuary_raw/estuary_raw/products:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        _id: {}
+        product_id: { type: string }
+        name: { type: string }
+      required: [_meta]
+    key: [/_meta/uuid]

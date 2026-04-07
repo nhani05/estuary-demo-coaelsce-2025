@@ -1,0 +1,54 @@
+collections:
+  nhanlexuan05/estuary_raw/txn-clean:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        id:               { type: string }
+        product_id:       { type: string }
+        amount:           { type: number }
+        is_anomaly:       { type: boolean }
+        transaction_date: { type: string }
+        payment_method:   { type: string }
+        transformed_at:   { type: string }
+      required: [_meta, id]
+    key: [/id]
+    derive:
+      using:
+        typescript:
+          module: transforms/clean-transactions.ts
+      transforms:
+        - name: fromTransactions
+          source: nhanlexuan05/estuary_raw/estuary_raw/transactions
+          shuffle: any
+
+  nhanlexuan05/estuary_raw/reviews-enriched:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        id:             { type: string }
+        product_id:     { type: string }
+        rating:         { type: integer }
+        sentiment:      { type: string }
+        review_text:    { type: string }
+        review_time:    { type: string }
+        transformed_at: { type: string }
+      required: [_meta, id]
+    key: [/id]
+    derive:
+      using:
+        typescript:
+          module: transforms/enrich-reviews.ts
+      transforms:
+        - name: fromReviews
+          source: nhanlexuan05/estuary_raw/estuary_raw/reviews
+          shuffle: any

@@ -1,0 +1,18 @@
+address: mongodb+srv://cluster0.gywrzdd.mongodb.net?authSource=admin
+database: estuary_raw
+password_sops: ENC[AES256_GCM,data:xJsmgZA=,iv:sDsGUaqdOf3UGAQopMrv4spMts2SI8lfVaIiN4sPiRY=,tag:jqvcF3VEYDLYrnXKYrKiIg==,type:str]
+user: mongo
+sops:
+  kms: null
+  gcp_kms:
+  - resource_id: projects/helpful-kingdom-273219/locations/us-central1/keyRings/catalog-sops/cryptoKeys/config-encryptor
+    created_at: 2026-03-30T14:00:18Z
+    enc: CiUABM8p+zvghKTgGsziD4Gej5pz3zhYfUyTstSR/72zH7UMkaX2EkkAawooMdiWnn61Qfp2B9Nu5F8qhYOfEMd+nh3FCIIPZOtB5JgcnRuW5Lay1YqZ/g4XJCgs+eL1hibcm1Z+iuWVL0GQaEwjzRth
+  azure_kv: null
+  hc_vault: null
+  age: null
+  lastmodified: 2026-03-30T14:00:19Z
+  mac: ENC[AES256_GCM,data:pDFMMsMPY8+30O7dbdYy0NGwlD7NZiHrbFFZ5bT3AMiVomv1U9rwL1pgQNkcOUWaxWV4cyA+p3StOWvN+2feEZFMzDkFMfyXfasa+5IDiFxCz4TEEhaXtFooKGH4UezJ27OTxkMiz+ipkhAUqrt1EDPHEQk2DnpnkUBNvm/MaiU=,iv:Q32nrgmQ/husFrC58944cDV+QB5n2junxbBqtp/Len4=,tag:gmcEpm/g7yphCx65waORbQ==,type:str]
+  pgp: null
+  encrypted_suffix: _sops
+  version: 3.7.3
