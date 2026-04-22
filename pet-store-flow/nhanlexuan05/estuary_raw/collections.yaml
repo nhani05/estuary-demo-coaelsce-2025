@@ -52,3 +52,57 @@ collections:
         - name: fromReviews
           source: nhanlexuan05/estuary_raw/estuary_raw/reviews
           shuffle: any
+
+  # nhanlexuan05/estuary_raw/anomaly-alerts:
+  #   schema:
+  #     type: object
+  #     properties:
+  #       _meta:
+  #         type: object
+  #         properties:
+  #           uuid: { type: string }
+  #         required: [uuid]
+  #       id:               { type: string }
+  #       product_id:       { type: string }
+  #       amount:           { type: number }
+  #       alert_level:      { type: string }
+  #       payment_method:   { type: string }
+  #       transaction_date: { type: string }
+  #       created_at:       { type: string }
+  #     required: [_meta, id]
+  #   key: [/id]
+  #   derive:
+  #     using:
+  #       typescript:
+  #         module: transforms/anomaly-alerts.ts
+  #     transforms:
+  #       - name: fromTxnClean
+  #         source: nhanlexuan05/estuary_raw/txn-clean
+  #         shuffle: any
+
+  nhanlexuan05/estuary_raw/anomaly-alerts:
+    schema:
+      type: object
+      properties:
+        _meta:
+          type: object
+          properties:
+            uuid: { type: string }
+          required: [uuid]
+        id:               { type: string }
+        product_id:       { type: string }
+        amount:           { type: number }
+        alert_level:      { type: string }
+        payment_method:   { type: string }
+        transaction_date: { type: string }
+        created_at:       { type: string }
+      required: [_meta, id]
+    key: [/id]
+    derive:
+      using:
+        typescript:
+          module: transforms/anomaly-alerts.ts
+      transforms:
+        - name: fromTxnClean
+          source: nhanlexuan05/estuary_raw/txn-clean
+          shuffle: any
